@@ -75,16 +75,6 @@ class SnapClean(object):
 
 
         # Step 1: Get all snapshots matching the Tag/Value
-        # targetFilter = [
-        #     {
-        #         'Name': 'status',
-        #         'Values': ['completed']
-        #     },
-        #     {
-        #         'Name': 'tag:' + self.tagKey,
-        #         'Values': [self.tagValue]
-        #     },
-        # ]
         targetFilter = [
             {
                 'Name': 'status',
@@ -111,9 +101,11 @@ class SnapClean(object):
         # Step #2: Collect all snapshots older than retentionTime
         TOTAL_SNAPSHOTS_FOUND='totalSnapshotsFound'
         EXPIRED_SNAPSHOTS_FOUND='expiredSnapshotsFound'
-        EXCEPETIONS_ENCOUNTERED='exceptionsEncountered'
+        SNAPSHOTS_DELETED='deletedSnapshots'
+        EXCEPTIONS_ENCOUNTERED='exceptionsEncountered'
 
-        results = {TOTAL_SNAPSHOTS_FOUND: 0, EXPIRED_SNAPSHOTS_FOUND: 0, EXCEPETIONS_ENCOUNTERED: 0}
+
+        results = {TOTAL_SNAPSHOTS_FOUND: 0, EXPIRED_SNAPSHOTS_FOUND: 0, SNAPSHOTS_DELETED: 0, EXCEPTIONS_ENCOUNTERED: 0}
         expiredSnapshots = []
         for snapshot in snapshot_iterator:
             assert isinstance(snapshot.start_time, datetime.datetime), '%r is not a datetime' % snapshot.start_time
@@ -127,20 +119,24 @@ class SnapClean(object):
         results[EXPIRED_SNAPSHOTS_FOUND] = len(expiredSnapshots)
 
         # Step #3: Delete snapshots in Collection, unless dryRunFlag is set
-        if(self.dryRunFlag == False ):
-            for snapshot in expiredSnapshots:
-                self.logger.info('Deleting snapshot %s' % snapshot.snapshot_id)
-                try:
+        for snapshot in expiredSnapshots:
+            self.logger.info('Snapshot %s identified for deletion' % snapshot.snapshot_id)
+            try:
+                if (self.dryRunFlag == False):
                     snapshot.delete()
-                except Exception as e:
-                    self.logger.error('Exception deleting snapshot %s, %s' % (snapshot.snapshot_id, str(e)))
-                    results[EXPIRED_SNAPSHOTS_FOUND] = results[EXPIRED_SNAPSHOTS_FOUND] + 1
+                    results[SNAPSHOTS_DELETED] = results[SNAPSHOTS_DELETED] + 1
+                else:
+                    self.logger.warning('Dryrun is set, snapshot %s will NOT be deleted' % snapshot.snapshot_id)
+            except Exception as e:
+                self.logger.error('Exception deleting snapshot %s, %s' % (snapshot.snapshot_id, str(e)))
+                results[EXCEPTIONS_ENCOUNTERED] = results[EXCEPTIONS_ENCOUNTERED] + 1
         else:
             self.logger.warning('Dryrun flag is set, no snapshots will be deleted')
 
         self.logger.info('Total Snapshots inspected %s', results[TOTAL_SNAPSHOTS_FOUND])
         self.logger.info('Expired Snapshots %s', results[EXPIRED_SNAPSHOTS_FOUND])
-        self.logger.info('Exceptions Encountered %s', results[EXCEPETIONS_ENCOUNTERED])
+        self.logger.info('Deleted Snapshots %s', results[SNAPSHOTS_DELETED])
+        self.logger.info('Exceptions Encountered %s', results[EXCEPTIONS_ENCOUNTERED])
 
 
 
