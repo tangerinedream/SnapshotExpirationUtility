@@ -28,7 +28,7 @@ optional arguments:
 ```
 
 ### Example: Delete Snapshots over 14 days with TagKey=MakeSnapshot, TagValue=DevTest14
-`$ python SnapClean.py -t 14 -k MakeSnapshot -v DevTest14`
+`$ python SnapClean.py -r us-east-1 -t 14 -k MakeSnapshot -v DevTest14`
 
 ### Example: Dryrun to determine which Snapshots would be deleted (but aren't)
-`$ python SnapClean.py -t 14 -k MakeSnapshot -v DevTest14 -d -l debug`
+`$ python SnapClean.py -r us-east-1 -t 14 -k MakeSnapshot -v DevTest14 -d -l debug`
