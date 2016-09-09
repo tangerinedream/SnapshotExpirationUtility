@@ -47,27 +47,24 @@ class SnapClean(object):
             loggingLevelSelected = logging.NOTSET
 
         filenameVal = 'SnapClean.log'
-
-        logging.basicConfig(format='%(asctime)s:%(levelname)s:%(name)s==>%(message)s\n',
-                            filename=filenameVal,
-                            level=loggingLevelSelected)
+        log_formatter = logging.Formatter('[%(asctime)s][%(levelname)s][%(funcName)s()][%(lineno)d]%(message)s')
 
         # Add the rotating file handler
         handler = logging.handlers.RotatingFileHandler(
             filename=filenameVal,
             mode='a',
-            maxBytes=1024 * 1024,
+            maxBytes=128 * 1024,
             backupCount=30)
-
+        handler.setFormatter(log_formatter)
+        
         self.logger.addHandler(handler)
+        self.logger.setLevel(loggingLevelSelected)
 
-        # Setup the Handlers
-        # create console handler and set level to debug
-        consoleHandler = logging.StreamHandler()
-        consoleHandler.setLevel(logging.INFO)
-        self.logger.addHandler(consoleHandler)
 
     def execute(self):
+
+        # Log the duration of the processing
+        startTime = datetime.datetime.now().replace(microsecond=0)
 
         # Get the EC2 Service Resource
         ec2ServiceResourceAPI = boto3.resource('ec2', region_name=self.region)
@@ -133,10 +130,18 @@ class SnapClean(object):
         else:
             self.logger.warning('Dryrun flag is set, no snapshots will be deleted')
 
+        # capture completion time
+        finishTime = datetime.datetime.now().replace(microsecond=0)
+        
         self.logger.info('Total Snapshots inspected %s', results[TOTAL_SNAPSHOTS_FOUND])
         self.logger.info('Expired Snapshots %s', results[EXPIRED_SNAPSHOTS_FOUND])
         self.logger.info('Deleted Snapshots %s', results[SNAPSHOTS_DELETED])
         self.logger.info('Exceptions Encountered %s', results[EXCEPTIONS_ENCOUNTERED])
+
+        self.logger.info('++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++')
+        self.logger.info('++ Completed processing for workload in ' + str(finishTime - startTime) + ' seconds')
+        self.logger.info('++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++')
+
 
 
 
