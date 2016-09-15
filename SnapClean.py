@@ -116,6 +116,9 @@ class SnapClean(object):
         results[EXPIRED_SNAPSHOTS_FOUND] = len(expiredSnapshots)
 
         # Step #3: Delete snapshots in Collection, unless dryRunFlag is set
+        if( self.dryRunFlag == True ):
+            self.logger.info('Dryrun option is set.  No deletions will occur')
+
         for snapshot in expiredSnapshots:
             self.logger.info('Snapshot %s identified for deletion' % snapshot.snapshot_id)
             try:
