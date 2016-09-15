@@ -127,8 +127,6 @@ class SnapClean(object):
             except Exception as e:
                 self.logger.error('Exception deleting snapshot %s, %s' % (snapshot.snapshot_id, str(e)))
                 results[EXCEPTIONS_ENCOUNTERED] = results[EXCEPTIONS_ENCOUNTERED] + 1
-        else:
-            self.logger.warning('Dryrun flag is set, no snapshots will be deleted')
 
         # capture completion time
         finishTime = datetime.datetime.now().replace(microsecond=0)
