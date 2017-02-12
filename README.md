@@ -1,5 +1,5 @@
 # SnapshotExpirationUtility
-This utility allows for easy cleanup of snapshots you deem expired.  The utility identifies all snapshots tagged with a TagKey and TagValue of your choosing, along with an expiration period (in days).
+This utility allows for easy cleanup of snapshots you deem expired.  The utility identifies all snapshots tagged with a TagKey and TagValue of your choosing, along with an expiration period expressed as a Policy.  The policy is of the form daily:weekly:monthly retention period.  For example 7:5:12 indicates a policy whereby 7 daily, 5 weekly, and 12 monthly snapshots are retained.
 
 This code can be launched from the command line, or from Lambda (code forthcoming)
 
