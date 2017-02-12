@@ -52,5 +52,5 @@ optional arguments:
 
 ### Example: With DEBUG level logging, delete Snapshots in eu-west-1 with TagKey=MakeSnapshot, TagValue=True which are older than the following policy : 7 Daily, 5 Weekly, 12 Monthly).
 #### Note: This removes all Daily snapshots older than 7 days, all Weekly older than 5 weeks, and all Monthly older than 12 months
-`$ python SnapClean.py -r us-east-1 -p 14:0:0 -k MakeSnapshot -v DevTest14 -a 123456789101` -l debug
+`$ python SnapClean.py -r us-east-1 -p 14:0:0 -k MakeSnapshot -v DevTest14 -a 123456789101 -l debug`
 
