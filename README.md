@@ -5,15 +5,19 @@ This code can be launched from the command line, or from Lambda (code forthcomin
 
 ## Dependencies
 * python 2.7
-* boto3
+* boto3 package
 * pytz package
-`pip install pytz`
+* grandfatherson package
+`sudo pip install boto3 pytz grandfatherson`
 
 
 ## Usage
+*Please note:* 
+* Weekly is assumed to be Saturday snapshots
+* Monthly are assumed to be first of the month snapshots
 ```
-$ python SnapClean.py -h
-usage: SnapClean.py [-h] -r REGION -t TIME -k TAGKEY -v TAGVALUE -a ACCOUNT
+$ python SnapClean.py --help
+usage: SnapClean.py [-h] -r REGION -p POLICY -k TAGKEY -v TAGVALUE -a ACCOUNT
                     [-d] [-l {critical,error,warning,info,debug,notset}]
 
 Command line parser
@@ -22,7 +26,10 @@ optional arguments:
   -h, --help            show this help message and exit
   -r REGION, --region REGION
                         AWS Region indicator
-  -t TIME, --time TIME  Age in days after which snapshot is deleted
+  -p POLICY, --policy POLICY
+                        Retention period for the snapshots. Retention based on
+                        the following notation Day:Week:Month eg. 7:5:12 would
+                        retain 7 daily, 5 weekly and 12 monthly
   -k TAGKEY, --tagKey TAGKEY
                         The name of the Tag Key used for snapshot searches
   -v TAGVALUE, --tagValue TAGVALUE
@@ -34,8 +41,15 @@ optional arguments:
                         The level to record log messages to the logfile
 ```
 
-### Example: Delete Snapshots over 14 days with TagKey=MakeSnapshot, TagValue=DevTest14
-`$ python SnapClean.py -r us-east-1 -t 14 -k MakeSnapshot -v DevTest14 -a 123456789101`
+### Example: Delete Snapshots in us-east-1 with TagKey=MakeSnapshot, TagValue=DevTest14 which are older than 14 days (Policy is 14 Daily, 0 Weekly, 0 Monthly)
+#### Note: This removes all Daily snapshots older than 14 days
+`$ python SnapClean.py -r us-east-1 -p 14:0:0 -k MakeSnapshot -v DevTest14 -a 123456789101`
 
-### Example: Dryrun to determine which Snapshots would be deleted (but aren't), including debug level output
-`$ python SnapClean.py -r us-east-1 -t 14 -k MakeSnapshot -v DevTest14  -a 123456789101 -l debug -d`
+### Example: Delete Snapshots in eu-west-1 with TagKey=MakeSnapshot, TagValue=True which are older than the following policy : 7 Daily, 5 Weekly, 12 Monthly).
+#### Note: This removes all Daily snapshots older than 7 days, all Weekly older than 5 weeks, and all Monthly older than 12 months
+`$ python SnapClean.py -r us-east-1 -p 14:0:0 -k MakeSnapshot -v DevTest14 -a 123456789101`
+
+### Example: With DEBUG level logging, delete Snapshots in eu-west-1 with TagKey=MakeSnapshot, TagValue=True which are older than the following policy : 7 Daily, 5 Weekly, 12 Monthly).
+#### Note: This removes all Daily snapshots older than 7 days, all Weekly older than 5 weeks, and all Monthly older than 12 months
+`$ python SnapClean.py -r us-east-1 -p 14:0:0 -k MakeSnapshot -v DevTest14 -a 123456789101` -l debug
+
