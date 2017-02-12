@@ -8,6 +8,7 @@ This code can be launched from the command line, or from Lambda (code forthcomin
 * boto3 package
 * pytz package
 * grandfatherson package
+
 `sudo pip install boto3 pytz grandfatherson`
 
 
