@@ -52,8 +52,8 @@ class SnapClean(object):
         handler = logging.handlers.RotatingFileHandler(
             filename=filenameVal,
             mode='a',
-            maxBytes=128 * 1024,
-            backupCount=30)
+            maxBytes=512 * 1024,
+            backupCount=9)
         handler.setFormatter(log_formatter)
 
         self.logger.addHandler(handler)
@@ -155,6 +155,7 @@ class SnapClean(object):
             snapshotStartDateTime = snapshot.start_time
 
             if (snapshotStartDateTime.date() not in inclusionDatesList):
+                self.logger.debug('Snapshot date of %s not in inclusionDatesList' % str(snapshotStartDateTime.date()))
                 expiredSnapshots.append(snapshot)
 
         results[EXPIRED_SNAPSHOTS_FOUND] = len(expiredSnapshots)
