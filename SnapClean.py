@@ -5,13 +5,18 @@ import pytz
 import argparse
 import logging
 import logging.handlers
+import time
 
+from time import strftime
 from datetime import datetime, timedelta
 from dateutil.relativedelta import *
 from grandfatherson import dates_to_keep, dates_to_delete, SATURDAY
 
 
 class SnapClean(object):
+
+    DATE_FORMAT="%a %b %d %Y"
+
     def __init__(self, region, policyDay, policyWeek, policyMonth, tagKey, tagValue, account, logLevel, dryRunFlag):
         self.region = region
         self.policyDay = policyDay
@@ -45,15 +50,15 @@ class SnapClean(object):
         elif (loglevel == 'notset'):
             loggingLevelSelected = logging.NOTSET
 
-        filenameVal = 'SnapClean.log'
-        log_formatter = logging.Formatter('[%(asctime)s][%(levelname)s][%(funcName)s()][%(lineno)d]%(message)s')
+        filenameVal = self.region + '_' + self.tagValue + '_SnapClean.log'
+        log_formatter = logging.Formatter('[%(asctime)s][%(levelname)s]%(message)s')
 
         # Add the rotating file handler
         handler = logging.handlers.RotatingFileHandler(
             filename=filenameVal,
             mode='a',
             maxBytes=512 * 1024,
-            backupCount=9)
+            backupCount=10)
         handler.setFormatter(log_formatter)
 
         self.logger.addHandler(handler)
@@ -61,9 +66,8 @@ class SnapClean(object):
 
     def generateInclusionDatesList(self):
 
-        end_range_date = datetime.now().date()
-
-        start_range_date = datetime.now
+        end_range_date = datetime.now(pytz.utc).date()
+        start_range_date = datetime.now(pytz.utc)
 
         # Calculate the date range where snapshots will be evaluated against by the grandfatherson algorithm.
         if self.policyMonth > 0:
@@ -76,28 +80,30 @@ class SnapClean(object):
             self.logger.error('error: no policy values specified, exiting') 
             sys.exit(-1)
 
-        self.logger.info( 'Start of Range date: ' + str(start_range_date) )
-        self.logger.info( 'End of Range date: ' + str(end_range_date) )
+        self.logger.info( 'Start of Range date in UTC: ' + start_range_date.strftime(SnapClean.DATE_FORMAT) )
+        self.logger.info( 'End of Range date in UTC: ' + end_range_date.strftime(SnapClean.DATE_FORMAT) )
 
         inclusionDatesList = [start_range_date + timedelta(days=i) for i in range((end_range_date - start_range_date).days + 1)]
 
-#        for item in inclusionDatesList:
-#            self.logger.debug(item)
-
+        # This is where the Grandfatherson algorithm is put in play
         return sorted( 
             dates_to_keep( 
-            inclusionDatesList,
-            days=self.policyDay, 
-            weeks=self.policyWeek, 
-            months=self.policyMonth,
-            firstweekday=SATURDAY, 
-            now=end_range_date)
+                inclusionDatesList,  
+                days=self.policyDay,
+                weeks=self.policyWeek,
+                months=self.policyMonth,
+                firstweekday=SATURDAY, 
+                now=end_range_date
+            )
         )
+
 
     def execute(self):
 
         # Log the duration of the processing
         startTime = datetime.now().replace(microsecond=0)
+
+        self.logger.info('============================================================================')
 
         # Get the EC2 Service Resource
         ec2ServiceResourceAPI = boto3.resource('ec2', region_name=self.region)
@@ -139,10 +145,8 @@ class SnapClean(object):
 
         inclusionDatesList = self.generateInclusionDatesList()
 
-        self.logger.debug('Inclusion Dates List is ')
         for item in inclusionDatesList:
-            self.logger.debug(item)
-
+            self.logger.info(item.strftime(SnapClean.DATE_FORMAT))
 
         for snapshot in snapshot_iterator:
 
@@ -150,13 +154,12 @@ class SnapClean(object):
 
             results[TOTAL_SNAPSHOTS_FOUND] = results[TOTAL_SNAPSHOTS_FOUND] + 1
 
-            self.logger.debug('Found snapshot matching tag: %s', snapshot.snapshot_id)
-
-            snapshotStartDateTime = snapshot.start_time
-
-            if (snapshotStartDateTime.date() not in inclusionDatesList):
-                self.logger.debug('Snapshot date of %s not in inclusionDatesList' % str(snapshotStartDateTime.date()))
+            snapshotStartDateTime = snapshot.start_time.date()
+            if (snapshotStartDateTime not in inclusionDatesList):
+                self.logger.info('Snapshot %s with date %s is NOT in inclusionDatesList and will be deleted' % (str(snapshot.snapshot_id), str(snapshot.start_time.strftime("%c %Z"))) )
                 expiredSnapshots.append(snapshot)
+            else:
+                self.logger.info('Snapshot %s will be retained per retention policy specified', snapshot.snapshot_id)
 
         results[EXPIRED_SNAPSHOTS_FOUND] = len(expiredSnapshots)
 
@@ -164,8 +167,25 @@ class SnapClean(object):
         if (self.dryRunFlag == True):
             self.logger.info('Dryrun option is set.  No deletions will occur')
 
+        iteration_count = 0
+        iteration_sleep_seconds = 1 * 30      # 30 second backoff
         for snapshot in expiredSnapshots:
-            self.logger.info('Snapshot %s identified for deletion' % snapshot.snapshot_id)
+            iteration_count += 1
+            # Since this loop will generate a large number of API calls within a tight timeframe,
+            # we are susceptible to RequestLimitExceeded, which not only affects this process,
+            # but all AWS API calls within a region.  As such, we will back off with a sleep every 100 calls
+            if( iteration_count % 100 == 0):
+                self.logger.info('Backing off '+str(iteration_sleep_seconds)+' seconds every 100 snapshot deletes to avoid API limits.  Zzzzz.....')
+                time.sleep(iteration_sleep_seconds)  
+
+            self.logger.info("[#%(idx)s][Snapshot %(vol)s identified for deletion." % {
+                    'idx':  str(iteration_count),
+                    'vol':  str(snapshot.snapshot_id)
+            })
+            self.logger.debug("Tags: %(tags)s" % {
+                    'tags':  str(snapshot.tags)
+            })
+            
             try:
                 if (self.dryRunFlag == False):
                     snapshot.delete()
@@ -190,7 +210,6 @@ class SnapClean(object):
 
 
 if __name__ == "__main__":
-    # python SnapClean.py -r us-east-1 -t 14 -p 7:5:12 -k tagKey -v tagValue -d
 
     parser = argparse.ArgumentParser(description='Command line parser')
     parser.add_argument('-r', '--region', help='AWS Region indicator', required=True)
@@ -221,8 +240,7 @@ if __name__ == "__main__":
 
     # Launch SnapClean
     policy_split = args.policy.split(":")
-    # TODO validate
+
     snapCleanMain = SnapClean(args.region, int(policy_split[0]), int(policy_split[1]), int(policy_split[2]),
                               args.tagKey, args.tagValue, args.account, loglevel, dryRun)
     snapCleanMain.execute()
-
