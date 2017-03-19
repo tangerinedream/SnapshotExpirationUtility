@@ -53,12 +53,12 @@ optional arguments:
 `$ python SnapClean.py -r us-east-1 -p 14:0:0 -k MakeSnapshot -v DevTest14 -a 123456789101`
 
 #### Example: Delete Snapshots in eu-west-1 with TagKey=MakeSnapshot, TagValue=Production which aren't part of the policy for 7 daily, 5 weekly, and 12 monthly (Policy is 7:5:12)
-##### Note: This removes all snapshots that fall outside of the policy
+##### Note: This removes all Daily snapshots older than 7 days, all Weekly older than 5 weeks, and all Monthly older than 12 months
 `$ python SnapClean.py -r eu-west-1 -p 7:5:12 -k MakeSnapshot -v Production -a 123456789101`
 
 #### Example: Delete Snapshots in eu-west-1 with TagKey=MakeSnapshot, TagValue=True which are older than the following policy : 7 Daily, 5 Weekly, 12 Monthly).
 ##### Note: This removes all Daily snapshots older than 7 days, all Weekly older than 5 weeks, and all Monthly older than 12 months
-`$ python SnapClean.py -r us-east-1 -p 14:0:0 -k MakeSnapshot -v DevTest14 -a 123456789101`
+`$ python SnapClean.py -r us-east-1 -p 7:5:12 -k MakeSnapshot -v DevTest14 -a 123456789101`
 
 #### Example: With DEBUG level logging, delete Snapshots in eu-west-1 with TagKey=MakeSnapshot, TagValue=True which are older than the following policy : 7 Daily, 5 Weekly, 12 Monthly).
 ##### Note: This removes all Daily snapshots older than 7 days, all Weekly older than 5 weeks, and all Monthly older than 12 months
