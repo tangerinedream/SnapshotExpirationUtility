@@ -80,6 +80,11 @@ class SnapClean(object):
             self.logger.error('error: no policy values specified, exiting') 
             sys.exit(-1)
 
+        self.logger.info( 'Retention Policy: %(daily)s Daily, %(weekly)s Weekly, and %(monthly)s Monthly' % {
+           'daily': self.policyDay,
+           'weekly': self.policyWeek,
+           'monthly': self.policyMonth
+        })
         self.logger.info( 'Start of Range date in UTC: ' + start_range_date.strftime(SnapClean.DATE_FORMAT) )
         self.logger.info( 'End of Range date in UTC: ' + end_range_date.strftime(SnapClean.DATE_FORMAT) )
 
