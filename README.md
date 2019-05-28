@@ -1,17 +1,17 @@
 # SnapshotExpirationUtility
-This utility allows for easy cleanup of snapshots you deem expired.  The utility identifies all snapshots tagged with a TagKey and TagValue of your choosing, along with an expiration period expressed as a Policy. If the snapshot creation date does not adhere to the retention policy, the snapshot is deleted. A dryrun option is provided for further insight and scenario testing. 
+This utility allows for easy cleanup of snapshots you deem expired.  The utility identifies all snapshots tagged with a TagKey and TagValue of your choosing, along with an expiration period expressed as a Policy. If the snapshot creation date is older than what's defined by the policy, the snapshot is deleted. A dryrun option is provided for further insight and scenario testing. 
 
 The policy is of the form daily:weekly:monthly retention period.  For example 7:5:12 indicates a policy whereby 7 daily, 5 weekly, and 12 monthly snapshots are retained.
 
 This code can be launched from the command line, or from Lambda (code forthcoming)
 
 ## Dependencies
-* python 2.7
+* python 3
 * boto3 package
 * pytz package
 * grandfatherson package
 
-`sudo pip install boto3 pytz grandfatherson`
+`sudo pip3 install boto3 pytz grandfatherson`
 
 
 ## Usage
@@ -19,8 +19,8 @@ This code can be launched from the command line, or from Lambda (code forthcomin
 * Weekly is assumed to be Saturday snapshots
 * Monthly are assumed to be first of the month snapshots
 ```
-$ python SnapClean.py --help
-usage: SnapClean.py [-h] -r REGION -p POLICY -k TAGKEY -v TAGVALUE -a ACCOUNT
+$ python3 SnapClean3.py --help
+usage: SnapClean3.py [-h] -r REGION -p POLICY -k TAGKEY -v TAGVALUE -a ACCOUNT
                     [-d] [-l {critical,error,warning,info,debug,notset}]
 
 Command line parser
@@ -46,21 +46,17 @@ optional arguments:
 
 #### Example: Tell me what snapshots *would* get deleted, but don't delete them (e.g. dryrun option).  Snapshots in us-east-1 with TagKey=MakeSnapshot, TagValue=DevTest14 which are older than 14 days (Policy is 14 Daily, 0 Weekly, 0 Monthly)
 ##### Note: This removes all Daily snapshots older than 14 days
-`$ python SnapClean.py -r us-east-1 -p 14:0:0 -k MakeSnapshot -v DevTest14 -a 123456789101 -d`
+`$ python3 SnapClean3.py -r us-east-1 -p 14:0:0 -k MakeSnapshot -v DevTest14 -a 123456789101 -d`
 
 #### Example: Delete Snapshots in us-east-1 with TagKey=MakeSnapshot, TagValue=DevTest14 which are older than 14 days (Policy is 14 Daily, 0 Weekly, 0 Monthly)
 ##### Note: This removes all Daily snapshots older than 14 days
-`$ python SnapClean.py -r us-east-1 -p 14:0:0 -k MakeSnapshot -v DevTest14 -a 123456789101`
-
-#### Example: Delete Snapshots in eu-west-1 with TagKey=MakeSnapshot, TagValue=Production which aren't part of the policy for 7 daily, 5 weekly, and 12 monthly (Policy is 7:5:12)
-##### Note: This removes all Daily snapshots older than 7 days, all Weekly older than 5 weeks, and all Monthly older than 12 months
-`$ python SnapClean.py -r eu-west-1 -p 7:5:12 -k MakeSnapshot -v Production -a 123456789101`
+`$ python3 SnapClean3.py -r us-east-1 -p 14:0:0 -k MakeSnapshot -v DevTest14 -a 123456789101`
 
 #### Example: Delete Snapshots in eu-west-1 with TagKey=MakeSnapshot, TagValue=True which are older than the following policy : 7 Daily, 5 Weekly, 12 Monthly).
 ##### Note: This removes all Daily snapshots older than 7 days, all Weekly older than 5 weeks, and all Monthly older than 12 months
-`$ python SnapClean.py -r us-east-1 -p 7:5:12 -k MakeSnapshot -v DevTest14 -a 123456789101`
+`$ python3 SnapClean3.py -r us-east-1 -p 14:0:0 -k MakeSnapshot -v DevTest14 -a 123456789101`
 
 #### Example: With DEBUG level logging, delete Snapshots in eu-west-1 with TagKey=MakeSnapshot, TagValue=True which are older than the following policy : 7 Daily, 5 Weekly, 12 Monthly).
 ##### Note: This removes all Daily snapshots older than 7 days, all Weekly older than 5 weeks, and all Monthly older than 12 months
-`$ python SnapClean.py -r us-east-1 -p 14:0:0 -k MakeSnapshot -v DevTest14 -a 123456789101 -l debug`
+`$ python3 SnapClean3.py -r us-east-1 -p 14:0:0 -k MakeSnapshot -v DevTest14 -a 123456789101 -l debug`
 
