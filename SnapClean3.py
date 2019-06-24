@@ -16,7 +16,6 @@ from redo import retriable, retry
 
 
 class SnapClean(object):
-
     DATE_FORMAT = "%a %b %d %Y"
 
     def __init__(self,
@@ -164,6 +163,7 @@ class SnapClean(object):
         ]
 
         InUseSnapShots = []
+        InUseSnapShotsCount = 0
 
         try:
             images = ec2.images.filter(Filters=imageFilter).all()
@@ -172,7 +172,8 @@ class SnapClean(object):
                     if 'Ebs' in snapshots:
                         self.logger.info('Snapshot %s is in use with AMI %s', snapshots['Ebs']['SnapshotId'], image.id)
                         InUseSnapShots.append(snapshots['Ebs']['SnapshotId'])
-            return InUseSnapShots
+                        InUseSnapShotsCount += 1
+            return InUseSnapShots, InUseSnapShotsCount
         except Exception as e:
             msg = "Exception filtering in-use snapshots %s" % (str(e))
             self.logger.error(msg)
@@ -191,7 +192,8 @@ class SnapClean(object):
         self.logger.info('============================================================================')
 
         # Go get a list of current snapshots associated to an AMI
-        in_use_snapshots = str(self.getInUseSnapshots())
+        in_use_snapshots, in_use_snapshots_count = self.getInUseSnapshots()
+        self.logger.info('Total Snapshots in use with AMIs : %s', in_use_snapshots_count)
 
         snapshot_iterator = iter([])
         snapshot_iterator = self.getFilteredSnapshots()
@@ -212,9 +214,12 @@ class SnapClean(object):
         for item in inclusionDatesList:
             self.logger.info(item.strftime(SnapClean.DATE_FORMAT))
 
+        inscope_inuse_snapshots = []
+        inscope_inuse_snapshots_count = 0
+
         for snapshot in snapshot_iterator:
             # If the snapshot isn't in the in_use_snapshots list, continue.
-            if (snapshot.id not in in_use_snapshots):
+            if (snapshot.id not in str(in_use_snapshots)):
                 self.logger.info('Snapshot %s is in-scope.', snapshot.id)
                 assert isinstance(snapshot.start_time, datetime), '%r is not a datetime' % snapshot.start_time
                 results[TOTAL_SNAPSHOTS_FOUND] = results[TOTAL_SNAPSHOTS_FOUND] + 1
@@ -224,6 +229,12 @@ class SnapClean(object):
                     expiredSnapshots.append(snapshot)
                 else:
                     self.logger.info('Snapshot %s will be retained per retention policy specified', snapshot.snapshot_id)
+            else:
+                self.logger.info('Inscope Snapshot %s is currently in use with an AMI. ( %s )', snapshot.snapshot_id, snapshot.description)
+                inscope_inuse_snapshots.append(snapshot)
+                inscope_inuse_snapshots_count += 1
+
+
         results[EXPIRED_SNAPSHOTS_FOUND] = len(expiredSnapshots)
 
         # Step #3: Delete snapshots in Collection, unless dryRunFlag is set
@@ -266,6 +277,8 @@ class SnapClean(object):
         # capture completion time
         finishTime = datetime.now().replace(microsecond=0)
 
+        self.logger.info('Total Snapshots in use with AMIs : %s', in_use_snapshots_count)
+        self.logger.info('Total In-scope Snapshots currently in use with an AMI : %s', inscope_inuse_snapshots_count)
         self.logger.info('Total Snapshots inspected %s', results[TOTAL_SNAPSHOTS_FOUND])
         self.logger.info('Expired Snapshots %s', results[EXPIRED_SNAPSHOTS_FOUND])
         self.logger.info('Deleted Snapshots %s', results[SNAPSHOTS_DELETED])
