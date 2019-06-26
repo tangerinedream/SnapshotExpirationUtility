@@ -16,7 +16,6 @@ from redo import retriable, retry
 
 
 class SnapClean(object):
-
     DATE_FORMAT = "%a %b %d %Y"
 
     def __init__(self,
@@ -190,21 +189,28 @@ class SnapClean(object):
 
         self.logger.info('============================================================================')
 
-        # Go get a list of current snapshots associated to an AMI
-        in_use_snapshots = str(self.getInUseSnapshots())
-
         snapshot_iterator = iter([])
         snapshot_iterator = self.getFilteredSnapshots()
-
 
         # Step #2: Collect all snapshots older than retentionTime
         TOTAL_SNAPSHOTS_FOUND = 'totalSnapshotsFound'
         EXPIRED_SNAPSHOTS_FOUND = 'expiredSnapshotsFound'
         SNAPSHOTS_DELETED = 'deletedSnapshots'
         EXCEPTIONS_ENCOUNTERED = 'exceptionsEncountered'
+        TOTAL_SNAPSHOTS_ASSOCIATED_WITH_AMIS = 'totalSnapshotsAssociatedWithAMIs'
+        TOTAL_INSCOPE_SNAPSHOTS_ASSOCIATED_WITH_AMIS = 'totalInscopeSnapshotsAssociatedWithAMIs'
 
-        results = {TOTAL_SNAPSHOTS_FOUND: 0, EXPIRED_SNAPSHOTS_FOUND: 0, SNAPSHOTS_DELETED: 0, EXCEPTIONS_ENCOUNTERED: 0}
+        results = { TOTAL_SNAPSHOTS_FOUND: 0,
+                    EXPIRED_SNAPSHOTS_FOUND: 0,
+                    SNAPSHOTS_DELETED: 0,
+                    EXCEPTIONS_ENCOUNTERED: 0,
+                    TOTAL_SNAPSHOTS_ASSOCIATED_WITH_AMIS: 0,
+                    TOTAL_INSCOPE_SNAPSHOTS_ASSOCIATED_WITH_AMIS: 0 }
 
+        # Go get a list of current snapshots associated to an AMI
+        in_use_snapshots = self.getInUseSnapshots()
+        results[TOTAL_SNAPSHOTS_ASSOCIATED_WITH_AMIS] = len(in_use_snapshots)
+                
         expiredSnapshots = []
 
         inclusionDatesList = self.generateInclusionDatesList()
@@ -212,9 +218,12 @@ class SnapClean(object):
         for item in inclusionDatesList:
             self.logger.info(item.strftime(SnapClean.DATE_FORMAT))
 
+        inscope_inuse_snapshots = []
+        inscope_inuse_snapshots_count = 0
+
         for snapshot in snapshot_iterator:
             # If the snapshot isn't in the in_use_snapshots list, continue.
-            if (snapshot.id not in in_use_snapshots):
+            if (snapshot.id not in str(in_use_snapshots)):
                 self.logger.info('Snapshot %s is in-scope.', snapshot.id)
                 assert isinstance(snapshot.start_time, datetime), '%r is not a datetime' % snapshot.start_time
                 results[TOTAL_SNAPSHOTS_FOUND] = results[TOTAL_SNAPSHOTS_FOUND] + 1
@@ -224,6 +233,11 @@ class SnapClean(object):
                     expiredSnapshots.append(snapshot)
                 else:
                     self.logger.info('Snapshot %s will be retained per retention policy specified', snapshot.snapshot_id)
+            else:
+                self.logger.info('Inscope Snapshot %s is currently in use with an AMI. ( %s )', snapshot.snapshot_id, snapshot.description)
+                inscope_inuse_snapshots.append(snapshot)
+
+        results[TOTAL_INSCOPE_SNAPSHOTS_ASSOCIATED_WITH_AMIS] = len(inscope_inuse_snapshots)
         results[EXPIRED_SNAPSHOTS_FOUND] = len(expiredSnapshots)
 
         # Step #3: Delete snapshots in Collection, unless dryRunFlag is set
@@ -266,11 +280,13 @@ class SnapClean(object):
         # capture completion time
         finishTime = datetime.now().replace(microsecond=0)
 
+        self.logger.info('============================================================================')
         self.logger.info('Total Snapshots inspected %s', results[TOTAL_SNAPSHOTS_FOUND])
         self.logger.info('Expired Snapshots %s', results[EXPIRED_SNAPSHOTS_FOUND])
         self.logger.info('Deleted Snapshots %s', results[SNAPSHOTS_DELETED])
+        self.logger.info('Total Snapshots in use with AMIs : %s', results[TOTAL_SNAPSHOTS_ASSOCIATED_WITH_AMIS])
+        self.logger.info('Total In-scope Snapshots currently in use with an AMI : %s', results[TOTAL_INSCOPE_SNAPSHOTS_ASSOCIATED_WITH_AMIS])
         self.logger.info('Exceptions Encountered %s', results[EXCEPTIONS_ENCOUNTERED])
-
         self.logger.info('++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++')
         self.logger.info('++ Completed processing for workload in ' + str(finishTime - startTime) + ' seconds')
         self.logger.info('++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++')
@@ -347,6 +363,7 @@ if __name__ == "__main__":
         loglevel,
         dryRun
         )
+
     snapCleanMain.snsInit()
 
     snapCleanMain.execute()
